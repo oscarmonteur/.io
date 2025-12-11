@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Oscar S. | Portfolio Interactif</title>
+    
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                dark: '#0a0a0a',
+                accent: '#3b82f6',
+                light: '#f3f4f6'
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.8s ease-out forwards',
+              'slide-up': 'slideUp 0.6s ease-out forwards',
+              'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              shake: {
+                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- 2. Global Styles -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #050505;
+        color: #e5e5e5;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+      }
+
+      /* Only lock scroll on desktop to maintain "app-like" feel, 
+         allow native scrolling on mobile */
+      @media (min-width: 768px) {
+        body {
+          overflow: hidden;
+        }
+      }
+      
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #0a0a0a; }
+      ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+
+    <!-- 3. Libraries (No crossorigin for local file support) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Using version 0.292.0 which reliably exposes window.lucideReact -->
+    <script src="https://unpkg.com/lucide-react@0.292.0/dist/lucide-react.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.559.0",
+    "canvas-confetti": "https://aistudiocdn.com/canvas-confetti@^1.9.4",
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- 1. INITIALIZATION ---
+        const { useState, useEffect } = React;
+        const { jsPDF } = window.jspdf;
+        
+        // Safe access to icons with fallback
+        const LucideIcons = window.lucideReact || {};
+        
+        // If icons fail to load, we define simple placeholders to avoid crash
+        const IconPlaceholder = () => <span style={{display:'inline-block', width:'1em', height:'1em', background:'currentColor', opacity:0.5, borderRadius:'2px'}}></span>;
+        
+        const getIcon = (name) => LucideIcons[name] || IconPlaceholder;
+
+        const ChevronRight = getIcon('ChevronRight');
+        const Globe = getIcon('Globe');
+        const Clapperboard = getIcon('Clapperboard');
+        const Code = getIcon('Code');
+        const ArrowUpRight = getIcon('ArrowUpRight');
+        const CheckCircle2 = getIcon('CheckCircle2');
+        const Zap = getIcon('Zap');
+        const Cpu = getIcon('Cpu');
+        const Check = getIcon('Check');
+        const Star = getIcon('Star');
+        const X = getIcon('X');
+        const ShoppingCart = getIcon('ShoppingCart');
+        const FileDown = getIcon('FileDown');
+        const Mail = getIcon('Mail');
+        const Download = getIcon('Download');
+        const AlertCircle = getIcon('AlertCircle');
+        const Percent = getIcon('Percent');
+
+        // --- 2. CONFIG ---
+        const StoryStep = {
+            INTRO: 0,
+            BIO_QUIZ: 1,
+            PRECISION: 2,
+            EXPERIENCE: 3,
+            PRICING: 4,
+            ADDONS: 5,
+            CONTACT_FORM: 6,
+            FINAL_SUMMARY: 7
+        };
+
+        // --- 3. COMPONENTS ---
+        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+            const baseStyle = "px-8 py-3 rounded-full font-medium transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black";
+            const variants = {
+                primary: "bg-white text-black hover:bg-gray-200 focus:ring-white",
+                secondary: "bg-transparent border border-white/20 text-white hover:bg-white/10 focus:ring-white/50",
+                ghost: "text-gray-400 hover:text-white hover:bg-white/5",
+                danger: "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+            };
+            return (
+                <button className={`${baseStyle} ${variants[variant]} ${className}`} {...props}>
+                    {children}
+                </button>
+            );
+        };
+
+        const Toast = ({ message, isVisible, onClose }) => {
+            const [show, setShow] = useState(false);
+            useEffect(() => {
+                if (isVisible) {
+                    setShow(true);
+                    const timer = setTimeout(() => {
+                        setShow(false);
+                        setTimeout(onClose, 300);
+                    }, 3000);
+                    return () => clearTimeout(timer);
+                }
+            }, [isVisible, onClose]);
+
+            if (!isVisible && !show) return null;
+            return (
+                <div className={`fixed top-10 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                    <div className="glass-panel px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl">
+                        <AlertCircle className="w-5 h-5 text-orange-400" />
+                        <span className="text-sm font-medium tracking-wide">{message}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 4. SLIDES ---
+
+        const IntroSlide = ({ onNext, onDeny }) => (
+            <div className="flex flex-col items-center text-center space-y-8 animate-fade-in max-w-2xl px-4">
+                <div className="space-y-2">
+                    <p className="text-blue-400 font-medium tracking-widest text-xs uppercase mb-4 animate-slide-up" style={{animationDelay: '0.1s'}}>
+                        Portfolio Interactif
+                    </p>
+                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-2 animate-slide-up" style={{animationDelay: '0.2s'}}>
+                        Oscar S.
+                    </h1>
+                    <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto my-6 animate-slide-up" style={{animationDelay: '0.3s'}} />
+                </div>
+                <p className="text-xl text-gray-400 animate-slide-up" style={{animationDelay: '0.4s'}}>
+                    Bienvenue sur mon profil. <br />
+                    Souhaitez-vous en savoir plus ?
+                </p>
+                <div className="flex gap-4 pt-8 animate-slide-up" style={{animationDelay: '0.5s'}}>
+                    <Button variant="secondary" onClick={onDeny}>Non</Button>
+                    <Button variant="primary" onClick={onNext} className="group flex items-center gap-2">
+                        Oui
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                </div>
+            </div>
+        );
+
+        const BioQuizSlide = ({ onComplete }) => {
+            const [selectedOption, setSelectedOption] = useState(null);
+            const [isError, setIsError] = useState(false);
+            const [isSuccess, setIsSuccess] = useState(false);
+
+            const options = [
+                { id: 'fr', label: 'France', isCorrect: false },
+                { id: 'mx', label: 'Mexique', isCorrect: false },
+                { id: 'th', label: 'Thaïlande', isCorrect: false },
+                { id: 'nc', label: 'Nouvelle Calédonie', isCorrect: true },
+            ];
+
+            const handleSelect = (option) => {
+                setSelectedOption(option.id);
+                if (option.isCorrect) {
+                    setIsSuccess(true);
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 }, colors: ['#3b82f6', '#ffffff', '#a855f7'] });
+                    setTimeout(() => onComplete(), 2000);
+                } else {
+                    setIsError(true);
+                    setTimeout(() => setIsError(false), 500);
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center max-w-3xl px-4 animate-fade-in w-full">
+                    <div className="glass-panel p-8 md:p-12 rounded-2xl w-full relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><Globe className="w-32 h-32" /></div>
+                        <div className="relative z-10 space-y-8">
+                            <h2 className="text-3xl font-bold text-white mb-6">À propos de moi</h2>
+                            <div className="text-lg md:text-xl text-gray-300 leading-relaxed space-y-4">
+                                <p>Je m'appelle <span className="text-white font-semibold">Oscar</span>, j'ai 23 ans.</p>
+                                <p>Mes valeurs fondamentales sont la <span className="text-blue-400">bonne foi</span>, le <span className="text-blue-400">partage</span> et la <span className="text-blue-400">croissance</span>.</p>
+                                <p>Je suis passionné par le <span className="inline-flex items-center gap-1 text-white"><Clapperboard className="w-4 h-4"/> montage vidéo</span> et le <span className="inline-flex items-center gap-1 text-white"><Code className="w-4 h-4"/> développement</span>.</p>
+                                <div className="pt-4 p-6 bg-white/5 rounded-xl border border-white/10 mt-6">
+                                    <p className="mb-6 font-medium text-center">
+                                        J'ai grandi en 
+                                        <span className={`mx-2 inline-block min-w-[150px] border-b-2 text-center transition-colors duration-300 ${isSuccess ? 'border-green-500 text-green-400' : isError ? 'border-red-500 text-red-400' : 'border-white/30 text-transparent'}`}>
+                                            {isSuccess ? 'Nouvelle Calédonie' : '__________'}
+                                        </span>
+                                    </p>
+                                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${isError ? 'animate-shake' : ''}`}>
+                                        {options.map((opt) => (
+                                            <button key={opt.id} onClick={() => !isSuccess && handleSelect(opt)} disabled={isSuccess}
+                                                className={`p-3 rounded-lg border text-sm transition-all duration-200 ${isSuccess && opt.isCorrect ? 'bg-green-500/20 border-green-500 text-green-300' : isSuccess && !opt.isCorrect ? 'opacity-30 border-transparent' : 'bg-transparent border-white/10 hover:bg-white/10 hover:border-white/30'} ${selectedOption === opt.id && !isSuccess && !opt.isCorrect ? 'bg-red-500/10 border-red-500 text-red-300' : ''}`}>
+                                                {opt.label}
+                                                {isSuccess && opt.isCorrect && <CheckCircle2 className="inline ml-2 w-4 h-4" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const PrecisionSlide = ({ onNext }) => {
+            const [activeVideo, setActiveVideo] = useState(1);
+            const toggleVideo = () => setActiveVideo(prev => prev === 1 ? 2 : 1);
+
+            return (
+                <div className="flex flex-col items-center max-w-5xl px-4 animate-fade-in w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 w-full items-center">
+                        <div className="space-y-6 order-2 md:order-1">
+                            <h2 className="text-4xl font-bold text-white leading-tight">Short Form & <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Ingénierie Créative</span></h2>
+                            <p className="text-gray-300 text-lg leading-relaxed">Je ne suis pas juste un monteur. Je suis un architecte de l'attention.</p>
+                            <div className="space-y-4">
+                                <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                                    <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400"><Zap className="w-6 h-6" /></div>
+                                    <div>
+                                        <h3 className="font-semibold text-white">Impact Immédiat</h3>
+                                        <p className="text-sm text-gray-400 mt-1">Spécialisation absolue dans les formats courts. Chaque seconde est optimisée pour la rétention.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                                    <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400"><Cpu className="w-6 h-6" /></div>
+                                    <div>
+                                        <h3 className="font-semibold text-white">Outils Sur-Mesure</h3>
+                                        <p className="text-sm text-gray-400 mt-1">Capacité unique à développer des softwares éphémères. <a href="https://purplebee.fr" target="_blank" className="text-purple-400 underline underline-offset-2 hover:text-purple-300 ml-1 font-medium">La Ruche</a></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="pt-4">
+                                <Button onClick={onNext} className="group">Voir mes collaborations <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform inline-block" /></Button>
+                            </div>
+                        </div>
+                        <div className="relative h-[500px] flex items-center justify-center order-1 md:order-2 perspective-1000">
+                            <div className="relative w-64 h-full flex items-center justify-center">
+                                <div onClick={toggleVideo} className={`absolute w-[260px] h-[460px] rounded-[2rem] overflow-hidden border-4 border-gray-900 shadow-2xl cursor-pointer transition-all duration-500 ease-out bg-black ${activeVideo === 1 ? 'z-20 scale-100 rotate-0 brightness-100' : 'z-10 scale-90 rotate-[-6deg] translate-x-[-40px] brightness-50 hover:brightness-75'}`}>
+                                    <video src="1.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = 'linear-gradient(45deg, #1e3a8a, #3b82f6)'; }} />
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-20 h-6 bg-black rounded-full z-30" />
+                                </div>
+                                <div onClick={toggleVideo} className={`absolute w-[260px] h-[460px] rounded-[2rem] overflow-hidden border-4 border-gray-900 shadow-2xl cursor-pointer transition-all duration-500 ease-out bg-black ${activeVideo === 2 ? 'z-20 scale-100 rotate-0 brightness-100' : 'z-10 scale-90 rotate-[6deg] translate-x-[40px] brightness-50 hover:brightness-75'}`}>
+                                    <video src="2.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = 'linear-gradient(45deg, #581c87, #a855f7)'; }} />
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-20 h-6 bg-black rounded-full z-30" />
+                                </div>
+                                <p className="absolute -bottom-8 text-gray-500 text-sm animate-pulse">Cliquez pour changer de vidéo</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ExperienceSlide = ({ onNext }) => {
+            const experiences = [
+                { id: 'feld', name: 'Charli Feld', role: 'Business Partner & Stratège', description: "Collaboration étroite sur la création de contenu éducatif et la vente de formations (TikTok Creator). Montage short expert, captation événementielle.", image: 'feld.png', link: 'https://www.youtube.com/@CharliFeld', color: 'from-orange-400 to-red-500' },
+                { id: 'alex', name: 'Alex Hitchens', role: 'Industrialisation & Volume', description: "Au cœur du réacteur. Développement de stratégies de création industrielle : 150 vidéos/jour grâce à une organisation millimétrée.", image: 'alex.png', link: 'https://www.youtube.com/@thefrenchitch', color: 'from-blue-600 to-blue-900' },
+                { id: 'tempro', name: 'Agence Tempro', role: 'Exigence Agence & B2B', description: "L'excellence au service des clients (Propuls, etc.). Montage détaillé, respect strict des deadlines et standards d'agence.", image: 'agence.png', color: 'from-emerald-400 to-teal-600' }
+            ];
+            const [activeId, setActiveId] = useState('alex');
+
+            return (
+                <div className="flex flex-col items-center w-full max-w-6xl px-4 animate-fade-in">
+                    <h2 className="text-3xl font-bold text-white mb-12">Expériences Marquantes</h2>
+                    <div className="flex flex-col md:flex-row w-full gap-4 h-[600px] md:h-[450px]">
+                        {experiences.map((exp) => {
+                            const isActive = activeId === exp.id;
+                            return (
+                                <div key={exp.id} onMouseEnter={() => setActiveId(exp.id)} className={`relative overflow-hidden rounded-[2rem] transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] cursor-pointer group ${isActive ? 'flex-[3] md:flex-[2.5]' : 'flex-[1] opacity-70 hover:opacity-100'} bg-white/5 border border-white/10`}>
+                                    <div className="absolute inset-0 z-0">
+                                        <img src={exp.image} alt={exp.name} className="w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.classList.add('bg-gradient-to-br', ...exp.color.split(' ')); }} />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                                    </div>
+                                    <div className="relative z-10 h-full flex flex-col justify-end p-8">
+                                        <div className={`transition-all duration-500 delay-100 transform ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-70'}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className={`text-3xl font-bold text-white ${isActive ? '' : 'truncate'}`}>{exp.name}</h3>
+                                                {exp.link && isActive && <a href={exp.link} target="_blank" className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><ArrowUpRight className="w-5 h-5 text-white" /></a>}
+                                            </div>
+                                            <div className={`overflow-hidden transition-all duration-500 ${isActive ? 'max-h-48 mt-4' : 'max-h-0'}`}>
+                                                <p className="text-blue-400 font-medium mb-3">{exp.role}</p>
+                                                <p className="text-gray-300 leading-relaxed text-sm md:text-base">{exp.description}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-12"><Button onClick={onNext} variant="secondary">Découvrir mes offres</Button></div>
+                </div>
+            );
+        };
+
+        const PricingSlide = ({ onSelect }) => {
+            const tiers = [
+                { id: "essential", name: "Essential Rush", price: 99, description: "Volume pour alimenter vos réseaux.", features: ["75 Clips Courts / Mois", "Sous-titres Animé Premium", "Retouches Légères Incluses"], excluded: ["Publication non incluse", "Montage Dynamique"], highlight: false },
+                { id: "pro", name: "Pro Signature", price: 200, description: "Qualité supérieure pour créateurs.", features: ["30 Shorts Haut de Gamme", "Montage Dynamique", "Sound Design Avancé", "Révisions Complexes Incluses", "Sous-titrage Animé Premium"], excluded: ["Publication non incluse"], highlight: false },
+                { 
+                    id: "ultimate", 
+                    name: "Ultimate Partner", 
+                    price: 499, 
+                    originalPrice: 700, 
+                    description: "L'arsenal complet.", 
+                    features: [
+                        "Max 150 Clips Courts", 
+                        "Dont 60 Montages Complexes", 
+                        "Montage Vidéos Longues (Youtube)", 
+                        "Dév. Software Éphémère", 
+                        "Cameraman Sur Site", 
+                        "Support IT 24h/24", 
+                        "Publication Incluse"
+                    ], 
+                    highlight: true 
+                }
+            ];
+
+            return (
+                <div className="flex flex-col items-center w-full max-w-7xl px-4 animate-fade-in pb-10">
+                    <div className="text-center mb-10 space-y-2">
+                        <h2 className="text-3xl md:text-4xl font-bold text-white">Offres & Partenariats</h2>
+                        <p className="text-gray-400">Choisissez la vitesse de votre croissance.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                        {tiers.map((tier, index) => (
+                            <div key={index} className={`relative p-8 rounded-2xl border transition-all duration-300 hover:transform hover:-translate-y-2 flex flex-col ${tier.highlight ? 'bg-gradient-to-b from-blue-900/40 to-black border-blue-500/50 shadow-lg shadow-blue-500/10' : 'glass-panel border-white/10 hover:border-white/20'}`}>
+                                {tier.highlight && <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1"><Star className="w-3 h-3 fill-current" />RECOMMANDÉ</div>}
+                                <div className="mb-6">
+                                    <h3 className="text-xl font-bold text-white mb-2">{tier.name}</h3>
+                                    <div className="flex items-baseline gap-2">
+                                        <div className="flex flex-col">
+                                            {tier.originalPrice && (
+                                                <span className="text-gray-500 line-through text-lg font-medium">{tier.originalPrice}€</span>
+                                            )}
+                                            <div className="flex items-baseline gap-1">
+                                                <span className={`text-3xl md:text-4xl font-extrabold ${tier.originalPrice ? 'text-red-400' : 'text-white'}`}>{tier.price}€</span>
+                                                <span className="text-gray-500 text-sm">/mois</span>
+                                            </div>
+                                        </div>
+                                        {tier.originalPrice && (
+                                            <div className="bg-red-500/20 text-red-400 text-xs px-2 py-1 rounded-full border border-red-500/30 font-bold animate-pulse">
+                                                -{(100 - (tier.price/tier.originalPrice)*100).toFixed(0)}%
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2 min-h-[40px]">{tier.description}</p>
+                                </div>
+                                <div className="space-y-4 mb-8 flex-grow">
+                                    {tier.features.map((feature, idx) => (<div key={idx} className="flex items-start gap-3 text-sm"><div className={`mt-0.5 p-0.5 rounded-full ${tier.highlight ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}><Check className="w-3 h-3" /></div><span className="text-gray-300">{feature}</span></div>))}
+                                    {tier.excluded?.map((excluded, idx) => (<div key={`ex-${idx}`} className="flex items-start gap-3 text-sm opacity-60"><div className="mt-0.5 p-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30"><X className="w-3 h-3" /></div><span className="text-gray-400 line-through decoration-red-900/50">{excluded}</span></div>))}
+                                </div>
+                                <Button variant={tier.highlight ? 'primary' : 'secondary'} className="w-full justify-center" onClick={() => onSelect(tier)}>Configurer</Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const AddOnsSlide = ({ selectedTier, onNext, onBack }) => {
+            const [selectedAddOns, setSelectedAddOns] = useState([]);
+            const availableAddOns = [
+                { id: 'yt_repurpose', name: "Recyclage YouTube", price: 400, description: "Transformation de votre catalogue long (Podcasts, Vidéos) en masse de shorts." },
+                { id: 'twitch_repurpose', name: "Recyclage Twitch", price: 700, description: "Extraction et montage des meilleurs moments de vos lives en format vertical." },
+                { id: 'retention', name: "Consulting Rétention", price: 50, description: "Analyse chirurgicale des vidéos pour maximiser le watchtime et l'engagement." },
+            ];
+
+            const toggleAddOn = (id) => setSelectedAddOns(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+            
+            // Fixed Calculation: Addons are one-time, Pack is monthly
+            const addonsTotal = availableAddOns.filter(a => selectedAddOns.includes(a.id)).reduce((sum, item) => sum + item.price, 0);
+            const monthlyTotal = selectedTier.price;
+            const totalToPayToday = monthlyTotal + addonsTotal;
+
+            const handleNext = () => onNext(availableAddOns.filter(a => selectedAddOns.includes(a.id)));
+
+            return (
+                <div className="flex flex-col items-center w-full max-w-4xl px-4 animate-fade-in pb-10">
+                    <div className="w-full mb-8"><Button variant="ghost" onClick={onBack} className="pl-0 hover:bg-transparent text-gray-500 hover:text-white">← Retour aux offres</Button></div>
+                    <div className="text-center mb-10 space-y-2"><h2 className="text-3xl font-bold text-white">Boostez votre pack</h2><p className="text-gray-400">Des options pour aller plus loin (Paiement Unique).</p></div>
+                    <div className="w-full space-y-4 mb-12">
+                        {availableAddOns.map((addon) => {
+                            const isSelected = selectedAddOns.includes(addon.id);
+                            return (
+                                <div key={addon.id} onClick={() => toggleAddOn(addon.id)} className={`p-6 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${isSelected ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'glass-panel border-white/10 hover:border-white/20 hover:bg-white/5'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-500 bg-transparent'}`}>{isSelected && <Check className="w-4 h-4 text-white" />}</div>
+                                        <div><h3 className="font-bold text-white">{addon.name}</h3><p className="text-sm text-gray-400">{addon.description}</p></div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-bold text-white text-lg">+{addon.price}€</div>
+                                        <div className="text-xs text-gray-500">Une fois</div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="w-full bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div>
+                            <p className="text-gray-400 text-sm uppercase tracking-wide">Total à régler aujourd'hui</p>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-3xl font-bold text-white">{totalToPayToday}€</div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {monthlyTotal}€ (Pack Mensuel) + {addonsTotal}€ (Options One-shot)
+                            </p>
+                        </div>
+                        <Button onClick={handleNext} className="w-full md:w-auto px-12">Valider ma sélection</Button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ContactFormSlide = ({ onNext, onBack }) => {
+            const [info, setInfo] = useState({ name: '', socials: '', email: '' });
+            const handleSubmit = (e) => { e.preventDefault(); if (info.name && info.socials) onNext(info); };
+            return (
+                <div className="flex flex-col items-center w-full max-w-lg px-4 animate-fade-in">
+                    <div className="w-full mb-6"><Button variant="ghost" onClick={onBack} className="pl-0 hover:bg-transparent text-gray-500 hover:text-white">← Retour</Button></div>
+                    <div className="glass-panel p-8 rounded-2xl w-full border border-white/10">
+                        <h2 className="text-2xl font-bold text-white mb-6">Faisons connaissance</h2>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div><label className="block text-sm text-gray-400 mb-2">Votre Nom / Nom de marque</label><input type="text" required className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="Ex: Oscar S." value={info.name} onChange={e => setInfo({...info, name: e.target.value})} /></div>
+                            <div><label className="block text-sm text-gray-400 mb-2">Lien réseaux sociaux (Instagram, YouTube...)</label><input type="text" required className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="Ex: @monpseudo" value={info.socials} onChange={e => setInfo({...info, socials: e.target.value})} /></div>
+                            <div><label className="block text-sm text-gray-400 mb-2">Email (pour le suivi)</label><input type="email" required className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="contact@email.com" value={info.email} onChange={e => setInfo({...info, email: e.target.value})} /></div>
+                            <Button type="submit" className="w-full mt-4 flex justify-center items-center gap-2">Générer mon devis <FileDown className="w-4 h-4" /></Button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const SummarySlide = ({ tier, addons, userInfo }) => {
+            const addonsTotal = addons.reduce((acc, curr) => acc + curr.price, 0);
+            const monthlyTotal = tier.price;
+            const totalFirstPayment = monthlyTotal + addonsTotal;
+
+            const generatePDF = () => {
+                const doc = new jsPDF();
+                doc.setFillColor(10, 10, 10); doc.rect(0, 0, 210, 40, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("DEVIS PROPOSITION", 20, 25);
+                doc.setFontSize(12); doc.text("Oscar S. Portfolio", 150, 25);
+                doc.setTextColor(0, 0, 0); doc.setFontSize(14); doc.text("Client:", 20, 60);
+                doc.setFontSize(12); doc.text(`Nom: ${userInfo.name}`, 20, 70); doc.text(`Réseaux: ${userInfo.socials}`, 20, 78); doc.text(`Email: ${userInfo.email}`, 20, 86); doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, 60);
+                doc.setDrawColor(200, 200, 200); doc.line(20, 100, 190, 100);
+                let y = 120;
+                doc.setFontSize(14); doc.text("Détails de la commande:", 20, y); y += 15;
+                
+                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.text(`Pack: ${tier.name}`, 20, y); doc.text(`${tier.price}€ / mois`, 170, y, { align: 'right' }); y += 8;
+                doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.setTextColor(100, 100, 100); doc.text("Abonnement Mensuel", 20, y); y += 15;
+                
+                if (addons.length > 0) {
+                    doc.setTextColor(0, 0, 0); doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.text("Options (Paiement Unique):", 20, y); y += 10;
+                    addons.forEach(addon => { doc.setFont(undefined, 'normal'); doc.text(`- ${addon.name}`, 25, y); doc.text(`${addon.price}€`, 170, y, { align: 'right' }); y += 8; }); y += 10;
+                }
+                
+                doc.setDrawColor(0, 0, 0); doc.line(20, y, 190, y); y += 15;
+                
+                doc.setFontSize(16); doc.setFont(undefined, 'bold'); 
+                doc.text("TOTAL À RÉGLER AUJOURD'HUI", 20, y); 
+                doc.text(`${totalFirstPayment}€`, 170, y, { align: 'right' });
+                
+                y+= 10;
+                doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.setTextColor(100,100,100);
+                doc.text(`(Dont ${monthlyTotal}€ mensuel récurrent + ${addonsTotal}€ frais uniques)`, 20, y);
+
+                doc.text("Ce document est une proposition générée automatiquement.", 20, 280);
+                doc.save(`devis-oscar-${userInfo.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+            };
+
+            const handleEmail = () => {
+                const subject = `Commande Portfolio - ${userInfo.name}`;
+                const addonsText = addons.map(a => `- ${a.name} (${a.price}€ - Unique)`).join('%0D%0A');
+                const body = `Bonjour Oscar,%0D%0A%0D%0AJe souhaite commander le pack suivant :%0D%0A%0D%0A📦 PACK: ${tier.name} (${tier.price}€/mois)%0D%0A%0D%0A➕ OPTIONS (One-shot):%0D%0A${addonsText || 'Aucune'}%0D%0A%0D%0A💰 TOTAL 1er PAIEMENT: ${totalFirstPayment}€%0D%0A%0D%0A👤 MES INFOS:%0D%0ANom: ${userInfo.name}%0D%0ARéseaux: ${userInfo.socials}%0D%0AEmail: ${userInfo.email}%0D%0A%0D%0AMerci de revenir vers moi pour la mise en place.`;
+                window.open(`mailto:oscaradressepro@gmail.com?subject=${subject}&body=${body}`, '_blank');
+            };
+
+            return (
+                <div className="flex flex-col items-center w-full max-w-2xl px-4 animate-fade-in pb-10">
+                    <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6"><Check className="w-10 h-10" /></div>
+                    <h2 className="text-3xl font-bold text-white mb-2">Proposition Prête !</h2>
+                    <p className="text-gray-400 mb-8 text-center">Voici le récapitulatif de votre configuration sur mesure.</p>
+                    <div className="glass-panel w-full p-8 rounded-2xl border border-white/10 mb-8 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500" />
+                        <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-6">
+                            <div><h3 className="font-bold text-white text-lg">{userInfo.name}</h3><p className="text-sm text-gray-400">{userInfo.socials}</p></div>
+                            <div className="text-right"><div className="text-xs text-gray-500 uppercase tracking-wider">À régler</div><div className="text-2xl font-bold text-blue-400">{totalFirstPayment}€</div></div>
+                        </div>
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between text-sm"><span className="text-white font-medium">Pack {tier.name} (Mensuel)</span><span className="text-gray-400">{tier.price}€</span></div>
+                            {addons.map(addon => (<div key={addon.id} className="flex justify-between text-sm"><span className="text-gray-300">+ {addon.name} (Unique)</span><span className="text-gray-500">{addon.price}€</span></div>))}
+                        </div>
+                        <div className="pt-4 border-t border-white/10 text-xs text-gray-500 text-center">
+                            Vous serez facturé {totalFirstPayment}€ aujourd'hui, puis {monthlyTotal}€/mois.
+                        </div>
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4 w-full">
+                        <Button onClick={generatePDF} variant="secondary" className="flex-1 flex justify-center items-center gap-2"><Download className="w-4 h-4" /> Télécharger PDF</Button>
+                        <Button onClick={handleEmail} variant="primary" className="flex-1 flex justify-center items-center gap-2"><Mail className="w-4 h-4" /> Envoyer la demande</Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-4">En cliquant sur "Envoyer", votre client mail s'ouvrira avec un message pré-rempli.</p>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [currentStep, setCurrentStep] = useState(StoryStep.INTRO);
+            const [toastVisible, setToastVisible] = useState(false);
+            const [selectedTier, setSelectedTier] = useState(null);
+            const [selectedAddOns, setSelectedAddOns] = useState([]);
+            const [userInfo, setUserInfo] = useState({ name: '', socials: '', email: '' });
+
+            const handleDeny = () => setToastVisible(true);
+            const handleToastClose = () => setToastVisible(false);
+
+            const renderStep = () => {
+                switch (currentStep) {
+                    case StoryStep.INTRO: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO_QUIZ)} onDeny={handleDeny} />;
+                    case StoryStep.BIO_QUIZ: return <BioQuizSlide onComplete={() => setCurrentStep(StoryStep.PRECISION)} />;
+                    case StoryStep.PRECISION: return <PrecisionSlide onNext={() => setCurrentStep(StoryStep.EXPERIENCE)} />;
+                    case StoryStep.EXPERIENCE: return <ExperienceSlide onNext={() => setCurrentStep(StoryStep.PRICING)} />;
+                    case StoryStep.PRICING: return <PricingSlide onSelect={(tier) => { setSelectedTier(tier); setCurrentStep(StoryStep.ADDONS); }} />;
+                    case StoryStep.ADDONS: return selectedTier ? <AddOnsSlide selectedTier={selectedTier} onNext={(addons) => { setSelectedAddOns(addons); setCurrentStep(StoryStep.CONTACT_FORM); }} onBack={() => setCurrentStep(StoryStep.PRICING)} /> : null;
+                    case StoryStep.CONTACT_FORM: return <ContactFormSlide onNext={(info) => { setUserInfo(info); setCurrentStep(StoryStep.FINAL_SUMMARY); }} onBack={() => setCurrentStep(StoryStep.ADDONS)} />;
+                    case StoryStep.FINAL_SUMMARY: return selectedTier ? <SummarySlide tier={selectedTier} addons={selectedAddOns} userInfo={userInfo} /> : null;
+                    default: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO_QUIZ)} onDeny={handleDeny} />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen w-full relative flex items-center justify-center bg-brand-dark selection:bg-blue-500/30 selection:text-blue-200">
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px] animate-pulse-slow" />
+                        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{animationDelay: '2s'}} />
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+                    </div>
+                    <main className="relative z-10 w-full flex flex-col items-center justify-center min-h-screen py-20 overflow-y-auto md:overflow-hidden">
+                        {renderStep()}
+                    </main>
+                    <Toast message="Mince, cette fonctionnalité ne fonctionne pas..." isVisible={toastVisible} onClose={handleToastClose} />
+                    <div className="fixed bottom-8 left-0 right-0 flex justify-center gap-2 pointer-events-none z-50">
+                        {[StoryStep.INTRO, StoryStep.BIO_QUIZ, StoryStep.PRECISION, StoryStep.EXPERIENCE, StoryStep.PRICING, StoryStep.ADDONS, StoryStep.CONTACT_FORM].map((step) => {
+                            if (currentStep === StoryStep.FINAL_SUMMARY) return null;
+                            return <div key={step} className={`h-1 rounded-full transition-all duration-500 ${currentStep === step ? 'w-8 bg-white' : currentStep > step ? 'w-2 bg-blue-500' : 'w-2 bg-white/10'}`} />
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
