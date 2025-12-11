@@ -53,11 +53,10 @@
         font-family: 'Inter', sans-serif;
         background-color: #050505;
         color: #e5e5e5;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        overflow-x: hidden;
       }
 
-      /* Only lock scroll on desktop to maintain "app-like" feel, 
-         allow native scrolling on mobile */
+      /* Lock scroll on desktop for app-like feel */
       @media (min-width: 768px) {
         body {
           overflow: hidden;
@@ -77,10 +76,9 @@
       ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 
-    <!-- 3. Libraries (No crossorigin for local file support) -->
+    <!-- 3. Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Using version 0.292.0 which reliably exposes window.lucideReact -->
     <script src="https://unpkg.com/lucide-react@0.292.0/dist/lucide-react.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -97,24 +95,21 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 1. INITIALIZATION ---
+        // --- 1. INITIALIZATION & HELPERS ---
         const { useState, useEffect } = React;
         const { jsPDF } = window.jspdf;
         
-        // Safe access to icons with fallback
+        // Icon Helper
         const LucideIcons = window.lucideReact || {};
-        
-        // If icons fail to load, we define simple placeholders to avoid crash
         const IconPlaceholder = () => <span style={{display:'inline-block', width:'1em', height:'1em', background:'currentColor', opacity:0.5, borderRadius:'2px'}}></span>;
-        
         const getIcon = (name) => LucideIcons[name] || IconPlaceholder;
 
+        // Icons
         const ChevronRight = getIcon('ChevronRight');
         const Globe = getIcon('Globe');
         const Clapperboard = getIcon('Clapperboard');
@@ -126,17 +121,16 @@
         const Check = getIcon('Check');
         const Star = getIcon('Star');
         const X = getIcon('X');
-        const ShoppingCart = getIcon('ShoppingCart');
         const FileDown = getIcon('FileDown');
         const Mail = getIcon('Mail');
         const Download = getIcon('Download');
         const AlertCircle = getIcon('AlertCircle');
-        const Percent = getIcon('Percent');
+        const MapPin = getIcon('MapPin');
 
-        // --- 2. CONFIG ---
+        // Enums / Constants
         const StoryStep = {
             INTRO: 0,
-            BIO_QUIZ: 1,
+            BIO: 1,
             PRECISION: 2,
             EXPERIENCE: 3,
             PRICING: 4,
@@ -145,7 +139,8 @@
             FINAL_SUMMARY: 7
         };
 
-        // --- 3. COMPONENTS ---
+        // --- 2. SHARED COMPONENTS ---
+
         const Button = ({ children, variant = 'primary', className = '', ...props }) => {
             const baseStyle = "px-8 py-3 rounded-full font-medium transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black";
             const variants = {
@@ -185,8 +180,9 @@
             );
         };
 
-        // --- 4. SLIDES ---
+        // --- 3. SLIDES ---
 
+        // 1. INTRO
         const IntroSlide = ({ onNext, onDeny }) => (
             <div className="flex flex-col items-center text-center space-y-8 animate-fade-in max-w-2xl px-4">
                 <div className="space-y-2">
@@ -212,57 +208,47 @@
             </div>
         );
 
-        const BioQuizSlide = ({ onComplete }) => {
-            const [selectedOption, setSelectedOption] = useState(null);
-            const [isError, setIsError] = useState(false);
-            const [isSuccess, setIsSuccess] = useState(false);
-
-            const options = [
-                { id: 'fr', label: 'France', isCorrect: false },
-                { id: 'mx', label: 'Mexique', isCorrect: false },
-                { id: 'th', label: 'Thaïlande', isCorrect: false },
-                { id: 'nc', label: 'Nouvelle Calédonie', isCorrect: true },
-            ];
-
-            const handleSelect = (option) => {
-                setSelectedOption(option.id);
-                if (option.isCorrect) {
-                    setIsSuccess(true);
-                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 }, colors: ['#3b82f6', '#ffffff', '#a855f7'] });
-                    setTimeout(() => onComplete(), 2000);
-                } else {
-                    setIsError(true);
-                    setTimeout(() => setIsError(false), 500);
-                }
-            };
-
+        // 2. BIO (Updated: No Quiz, Premium Card)
+        const BioSlide = ({ onNext }) => {
             return (
-                <div className="flex flex-col items-center max-w-3xl px-4 animate-fade-in w-full">
-                    <div className="glass-panel p-8 md:p-12 rounded-2xl w-full relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10"><Globe className="w-32 h-32" /></div>
-                        <div className="relative z-10 space-y-8">
-                            <h2 className="text-3xl font-bold text-white mb-6">À propos de moi</h2>
-                            <div className="text-lg md:text-xl text-gray-300 leading-relaxed space-y-4">
-                                <p>Je m'appelle <span className="text-white font-semibold">Oscar</span>, j'ai 23 ans.</p>
-                                <p>Mes valeurs fondamentales sont la <span className="text-blue-400">bonne foi</span>, le <span className="text-blue-400">partage</span> et la <span className="text-blue-400">croissance</span>.</p>
-                                <p>Je suis passionné par le <span className="inline-flex items-center gap-1 text-white"><Clapperboard className="w-4 h-4"/> montage vidéo</span> et le <span className="inline-flex items-center gap-1 text-white"><Code className="w-4 h-4"/> développement</span>.</p>
-                                <div className="pt-4 p-6 bg-white/5 rounded-xl border border-white/10 mt-6">
-                                    <p className="mb-6 font-medium text-center">
-                                        J'ai grandi en 
-                                        <span className={`mx-2 inline-block min-w-[150px] border-b-2 text-center transition-colors duration-300 ${isSuccess ? 'border-green-500 text-green-400' : isError ? 'border-red-500 text-red-400' : 'border-white/30 text-transparent'}`}>
-                                            {isSuccess ? 'Nouvelle Calédonie' : '__________'}
-                                        </span>
-                                    </p>
-                                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${isError ? 'animate-shake' : ''}`}>
-                                        {options.map((opt) => (
-                                            <button key={opt.id} onClick={() => !isSuccess && handleSelect(opt)} disabled={isSuccess}
-                                                className={`p-3 rounded-lg border text-sm transition-all duration-200 ${isSuccess && opt.isCorrect ? 'bg-green-500/20 border-green-500 text-green-300' : isSuccess && !opt.isCorrect ? 'opacity-30 border-transparent' : 'bg-transparent border-white/10 hover:bg-white/10 hover:border-white/30'} ${selectedOption === opt.id && !isSuccess && !opt.isCorrect ? 'bg-red-500/10 border-red-500 text-red-300' : ''}`}>
-                                                {opt.label}
-                                                {isSuccess && opt.isCorrect && <CheckCircle2 className="inline ml-2 w-4 h-4" />}
-                                            </button>
-                                        ))}
-                                    </div>
+                <div className="flex flex-col items-center max-w-4xl px-4 animate-fade-in w-full">
+                    <div className="glass-panel p-8 md:p-12 rounded-2xl w-full relative overflow-hidden flex flex-col md:flex-row gap-8 items-center border border-white/10">
+                        {/* Visual Element */}
+                        <div className="shrink-0 relative">
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center relative overflow-hidden border border-white/5">
+                                <Globe className="w-16 h-16 text-blue-400 opacity-80" />
+                                <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full"></div>
+                            </div>
+                        </div>
+
+                        {/* Text Content */}
+                        <div className="space-y-6 text-left flex-1">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white mb-2">Oscar S.</h2>
+                                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                    <MapPin className="w-4 h-4" />
+                                    <span>Originaire de Nouvelle-Calédonie</span>
                                 </div>
+                            </div>
+
+                            <div className="text-lg text-gray-300 leading-relaxed space-y-4">
+                                <p>J'ai 23 ans. Mon parcours m'a forgé une vision précise du travail : <span className="text-white">la bonne foi</span>, <span className="text-white">le partage</span> et la <span className="text-white">croissance constante</span>.</p>
+                                <p>Je ne me contente pas d'exécuter. Je construis des solutions visuelles et techniques. Passionné par la fusion entre le créatif et le code, je cherche continuellement à optimiser l'impact de chaque contenu.</p>
+                                
+                                <div className="flex flex-wrap gap-3 pt-4">
+                                    <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm font-medium text-white flex items-center gap-2">
+                                        <Clapperboard className="w-4 h-4 text-blue-400"/> Montage Vidéo
+                                    </span>
+                                    <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm font-medium text-white flex items-center gap-2">
+                                        <Code className="w-4 h-4 text-purple-400"/> Développement
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="pt-6">
+                                <Button onClick={onNext} variant="secondary" className="group w-full md:w-auto flex justify-center items-center">
+                                    Découvrir mon expertise <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform inline-block" />
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -270,6 +256,7 @@
             );
         };
 
+        // 3. PRECISION
         const PrecisionSlide = ({ onNext }) => {
             const [activeVideo, setActiveVideo] = useState(1);
             const toggleVideo = () => setActiveVideo(prev => prev === 1 ? 2 : 1);
@@ -318,6 +305,7 @@
             );
         };
 
+        // 4. EXPERIENCE
         const ExperienceSlide = ({ onNext }) => {
             const experiences = [
                 { id: 'feld', name: 'Charli Feld', role: 'Business Partner & Stratège', description: "Collaboration étroite sur la création de contenu éducatif et la vente de formations (TikTok Creator). Montage short expert, captation événementielle.", image: 'feld.png', link: 'https://www.youtube.com/@CharliFeld', color: 'from-orange-400 to-red-500' },
@@ -359,10 +347,27 @@
             );
         };
 
+        // 5. PRICING
         const PricingSlide = ({ onSelect }) => {
             const tiers = [
-                { id: "essential", name: "Essential Rush", price: 99, description: "Volume pour alimenter vos réseaux.", features: ["75 Clips Courts / Mois", "Sous-titres Animé Premium", "Retouches Légères Incluses"], excluded: ["Publication non incluse", "Montage Dynamique"], highlight: false },
-                { id: "pro", name: "Pro Signature", price: 200, description: "Qualité supérieure pour créateurs.", features: ["30 Shorts Haut de Gamme", "Montage Dynamique", "Sound Design Avancé", "Révisions Complexes Incluses", "Sous-titrage Animé Premium"], excluded: ["Publication non incluse"], highlight: false },
+                { 
+                    id: "essential", 
+                    name: "Essential Rush", 
+                    price: 99, 
+                    description: "Volume pour alimenter vos réseaux.", 
+                    features: ["75 Clips Courts / Mois", "Sous-titres Animé Premium", "Retouches Légères Incluses"], 
+                    excluded: ["Publication non incluse", "Montage Dynamique"], 
+                    highlight: false 
+                },
+                { 
+                    id: "pro", 
+                    name: "Pro Signature", 
+                    price: 200, 
+                    description: "Qualité supérieure pour créateurs.", 
+                    features: ["30 Shorts Haut de Gamme", "Montage Dynamique", "Sound Design Avancé", "Révisions Complexes Incluses", "Sous-titrage Animé Premium"], 
+                    excluded: ["Publication non incluse"], 
+                    highlight: false 
+                },
                 { 
                     id: "ultimate", 
                     name: "Ultimate Partner", 
@@ -371,8 +376,8 @@
                     description: "L'arsenal complet.", 
                     features: [
                         "150 Clips Courts", 
-                        "60 short Dynamique", 
-                        "4 Vidéos Longues (Youtube)", 
+                        "60 Clips Dynamique", 
+                        "4 Montage Vidéos Longues", 
                         "Dév. Software Éphémère", 
                         "Cameraman Sur Site", 
                         "Support IT 24h/24", 
@@ -424,6 +429,7 @@
             );
         };
 
+        // 6. ADDONS
         const AddOnsSlide = ({ selectedTier, onNext, onBack }) => {
             const [selectedAddOns, setSelectedAddOns] = useState([]);
             const availableAddOns = [
@@ -434,7 +440,6 @@
 
             const toggleAddOn = (id) => setSelectedAddOns(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
             
-            // Fixed Calculation: Addons are one-time, Pack is monthly
             const addonsTotal = availableAddOns.filter(a => selectedAddOns.includes(a.id)).reduce((sum, item) => sum + item.price, 0);
             const monthlyTotal = selectedTier.price;
             const totalToPayToday = monthlyTotal + addonsTotal;
@@ -478,6 +483,7 @@
             );
         };
 
+        // 7. CONTACT FORM
         const ContactFormSlide = ({ onNext, onBack }) => {
             const [info, setInfo] = useState({ name: '', socials: '', email: '' });
             const handleSubmit = (e) => { e.preventDefault(); if (info.name && info.socials) onNext(info); };
@@ -497,6 +503,7 @@
             );
         };
 
+        // 8. FINAL SUMMARY
         const SummarySlide = ({ tier, addons, userInfo }) => {
             const addonsTotal = addons.reduce((acc, curr) => acc + curr.price, 0);
             const monthlyTotal = tier.price;
@@ -570,6 +577,7 @@
             );
         };
 
+        // --- 4. MAIN APP ---
         const App = () => {
             const [currentStep, setCurrentStep] = useState(StoryStep.INTRO);
             const [toastVisible, setToastVisible] = useState(false);
@@ -582,15 +590,15 @@
 
             const renderStep = () => {
                 switch (currentStep) {
-                    case StoryStep.INTRO: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO_QUIZ)} onDeny={handleDeny} />;
-                    case StoryStep.BIO_QUIZ: return <BioQuizSlide onComplete={() => setCurrentStep(StoryStep.PRECISION)} />;
+                    case StoryStep.INTRO: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO)} onDeny={handleDeny} />;
+                    case StoryStep.BIO: return <BioSlide onNext={() => setCurrentStep(StoryStep.PRECISION)} />;
                     case StoryStep.PRECISION: return <PrecisionSlide onNext={() => setCurrentStep(StoryStep.EXPERIENCE)} />;
                     case StoryStep.EXPERIENCE: return <ExperienceSlide onNext={() => setCurrentStep(StoryStep.PRICING)} />;
                     case StoryStep.PRICING: return <PricingSlide onSelect={(tier) => { setSelectedTier(tier); setCurrentStep(StoryStep.ADDONS); }} />;
                     case StoryStep.ADDONS: return selectedTier ? <AddOnsSlide selectedTier={selectedTier} onNext={(addons) => { setSelectedAddOns(addons); setCurrentStep(StoryStep.CONTACT_FORM); }} onBack={() => setCurrentStep(StoryStep.PRICING)} /> : null;
                     case StoryStep.CONTACT_FORM: return <ContactFormSlide onNext={(info) => { setUserInfo(info); setCurrentStep(StoryStep.FINAL_SUMMARY); }} onBack={() => setCurrentStep(StoryStep.ADDONS)} />;
                     case StoryStep.FINAL_SUMMARY: return selectedTier ? <SummarySlide tier={selectedTier} addons={selectedAddOns} userInfo={userInfo} /> : null;
-                    default: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO_QUIZ)} onDeny={handleDeny} />;
+                    default: return <IntroSlide onNext={() => setCurrentStep(StoryStep.BIO)} onDeny={handleDeny} />;
                 }
             };
 
@@ -606,7 +614,7 @@
                     </main>
                     <Toast message="Mince, cette fonctionnalité ne fonctionne pas..." isVisible={toastVisible} onClose={handleToastClose} />
                     <div className="fixed bottom-8 left-0 right-0 flex justify-center gap-2 pointer-events-none z-50">
-                        {[StoryStep.INTRO, StoryStep.BIO_QUIZ, StoryStep.PRECISION, StoryStep.EXPERIENCE, StoryStep.PRICING, StoryStep.ADDONS, StoryStep.CONTACT_FORM].map((step) => {
+                        {[StoryStep.INTRO, StoryStep.BIO, StoryStep.PRECISION, StoryStep.EXPERIENCE, StoryStep.PRICING, StoryStep.ADDONS, StoryStep.CONTACT_FORM].map((step) => {
                             if (currentStep === StoryStep.FINAL_SUMMARY) return null;
                             return <div key={step} className={`h-1 rounded-full transition-all duration-500 ${currentStep === step ? 'w-8 bg-white' : currentStep > step ? 'w-2 bg-blue-500' : 'w-2 bg-white/10'}`} />
                         })}
@@ -618,6 +626,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
